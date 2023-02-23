@@ -1,60 +1,70 @@
 package com.example.projectjavafx;
 
-import javafx.scene.control.Alert;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Server {
-    private final String dbURL;
-    private final String dbUserName;
-    private final String dbPassword;
+    private final String URL;
+    private final String USERNAME;
+    private final String PASSWORD;
     private String login;
     private String password;
 
-    public Server() throws IOException {
+    public Server() {
         Properties properties = new Properties();
         File propertyFile = new File("property.prop");
-        if (!propertyFile.exists()) propertyFile.createNewFile();
         try {
+            if (!propertyFile.exists()) propertyFile.createNewFile();
             properties.load(new FileReader(propertyFile));
         } catch (IOException ex) {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
         }
-        dbURL = properties.getProperty("db.url");
-        dbUserName = properties.getProperty("db.user");
-        dbPassword = properties.getProperty("db.password");
+        URL = properties.getProperty("db.url");
+        USERNAME = properties.getProperty("db.user");
+        PASSWORD = properties.getProperty("db.password");
     }
 
-    public void signIn(TextField userNameField, PasswordField passwordField) {
+    public boolean signIn(TextField userNameField, PasswordField passwordField)  {
         login = userNameField.getText();
         password = passwordField.getText();
 
         if (readUsers()) {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("login and password verification");
-            alert.setContentText("Authentication completed successfully");
-            alert.showAndWait();
+            new PersonStage().init();
+            return true;
         } else {
             userNameField.clear();
             passwordField.clear();
             Alert alert = new Alert(Alert.AlertType.ERROR);
+            DialogPane dialogPane = alert.getDialogPane();
+
+            try {
+                dialogPane.getStylesheets().add(new File("myDialogs.css").toURI().toURL().toString());
+            } catch (MalformedURLException e) {
+               e.printStackTrace();
+            }
+            dialogPane.getStyleClass().add("myDialog");
+
             alert.setTitle("login and password verification");
             alert.setHeaderText("Authentication failed!");
-            alert.setContentText("Incorrect username or password");
+            alert.setContentText("Incorrect username or password! Please try again");
+
             alert.showAndWait();
+            return false;
         }
     }
 
     private boolean readUsers() {
-        try (Connection connection = DriverManager.getConnection(dbURL, dbUserName, dbPassword);
+        try (Connection connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
              Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery("SELECT NAME, PASSWORD FROM USERS")) {
             resultSet.next();
@@ -67,4 +77,41 @@ public class Server {
         return false;
     }
 
+    public List<PersonDTO> getAllPersonDTO() {
+        List<PersonDTO> personDTOList = new ArrayList<>();
+        try (Connection connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery("SELECT person.*, count(domains.id) " +
+                     "FROM person LEFT JOIN domains ON person.id=domains.personid GROUP BY person.id")) {
+            while (resultSet.next()) {
+                personDTOList.add(new PersonDTO(resultSet.getInt(1),
+                        resultSet.getString(2), resultSet.getString(3),
+                        resultSet.getString(4), resultSet.getString(5),
+                        resultSet.getInt(6)));
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+        return personDTOList;
+    }
+
+    public List<Domain> getDomainByPersonId(Integer id) {
+        List<Domain> domainList = new ArrayList<>();
+        try (Connection connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+             PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM domains " +
+                     "WHERE personid = ?")) {
+            preparedStatement.setInt(1, id);
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                while (resultSet.next()) {
+                    domainList.add(new Domain(resultSet.getInt(1),
+                            resultSet.getString(2), resultSet.getString(3),
+                            resultSet.getString(4), resultSet.getTimestamp(5),
+                            resultSet.getString(6), resultSet.getInt(7)));
+                }
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+        return domainList;
+    }
 }

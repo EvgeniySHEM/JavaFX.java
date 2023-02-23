@@ -1,13 +1,10 @@
 package com.example.projectjavafx;
 
 import javafx.application.Application;
-import javafx.geometry.Insets;
+import javafx.geometry.HPos;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.text.Font;
@@ -16,7 +13,7 @@ import javafx.stage.Stage;
 public class UserInterface extends Application {
 
     @Override
-    public void start(Stage stage) throws Exception {
+    public void start(Stage stage)  {
         Server server = new Server();
 
         Label welcome = new Label("Welcome");
@@ -30,8 +27,12 @@ public class UserInterface extends Application {
         password.setFont(Font.font(16));
         PasswordField passwordField = new PasswordField();
 
-        Button singIn = new Button("Sing in");
-        singIn.setOnAction(e -> server.signIn(userNameField, passwordField));
+        Button singInButton = new Button("Sing in");
+        singInButton.setOnAction(e -> {
+            if(server.signIn(userNameField, passwordField)) {
+                stage.close();
+            }
+        });
 
         GridPane root = new GridPane();
         root.setAlignment(Pos.CENTER);
@@ -48,9 +49,9 @@ public class UserInterface extends Application {
         root.add(password, 0, 2, 1, 1);
         root.add(passwordField, 1, 2, 3, 1);
 
-        root.add(singIn,3, 5, 1,1);
-        GridPane.setMargin(singIn, new Insets(0,0,0,100));
-        singIn.setPrefWidth(80);
+        root.add(singInButton,3, 5, 1,1);
+        GridPane.setHalignment(singInButton, HPos.RIGHT);
+        singInButton.setPrefWidth(80);
 
         Scene scene = new Scene(root, 600, 500);
 
